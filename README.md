@@ -1,4 +1,6 @@
 # 🥓 Beacon
+[![CI](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml/badge.svg)](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml)
+
 [Читати українською](./README.uk.md)
 
 A lightweight terminal monitor for outbound network activity in real time, built with Python.
@@ -10,10 +12,10 @@ Beacon helps you instantly see which applications are currently connecting to th
 ## What it does
 
 - **Real-time monitoring:** scans active IPv4/IPv6 sockets (`inet`) every second without flickering the terminal.
-- **Non-blocking Reverse DNS:** resolves external IP addresses into human-readable hostnames in a background thread pool with caching so the UI never freezes.
+- **Non-blocking reverse DNS:** resolves external IP addresses into human-readable hostnames in a background thread pool with caching, so the UI never freezes.
 - **Smart socket grouping:** deduplicates multiple connections from the same process to the same target into a single row with a socket counter (`x2`, `x8`).
 - **Noise filtering:** automatically ignores loopback addresses, private subnets (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`), link-local traffic, and lingering `TIME_WAIT` sockets.
-- **Process mapping:** associates each connection with the originating application and its `PID`.
+- **Persistent JSON whitelist:** stores trusted processes in `~/.beacon/whitelist.json` and lets you manage them from the CLI.
 - **Roast-level scoring system:**
   - 🥩 `RAW (Idle)` — trusted process in an idle or closing state.
   - 🥓 `SIZZLING (Active)` — active `ESTABLISHED` connection from a trusted process on a standard port (`80`, `443`, `53`).
@@ -22,36 +24,56 @@ Beacon helps you instantly see which applications are currently connecting to th
 
 ## Installation and usage
 
-1. Clone the repository:
+1. Clone the repository and create a virtual environment:
    ```bash
    git clone https://github.com/y-lebid/beacon-net.git
-   ```
-
-2. Activate the environment and install dependencies:
-   ```bash
    cd beacon-net
    python -m venv venv
+   ```
+
+2. Activate the environment and install the package:
+   ```bash
    # Linux / macOS
    source venv/bin/activate
 
    # Windows
    venv\Scripts\activate
 
-   pip install psutil rich
+   pip install -e .
    ```
 
-3. Run the monitor:
+3. Run the monitor or manage your whitelist from the CLI:
    ```bash
-   python beacon.py
+   # Start the live monitor (default: 1-second refresh)
+   beacon
+
+   # Set a custom refresh interval
+   beacon --interval 2
+
+   # Show the whitelist path and trusted processes
+   beacon --whitelist
+
+   # Add a process to ~/.beacon/whitelist.json
+   beacon --trust ProtonVPN.Client.exe
    ```
 
-> Note: to display system processes and services correctly, run the script with administrator privileges (`sudo python beacon.py` on Linux or as Administrator on Windows).
-> Without elevated rights, some system processes may appear as `Restricted`.
+> **Note:** To resolve names for all system processes and services, run the terminal with elevated privileges (`sudo beacon` on Linux or as Administrator on Windows). Without elevated rights, protected processes may appear as `Restricted`.
+
+## Development and testing
+
+Install the development dependencies and run the test suite:
+
+```bash
+pip install -e ".[dev]"
+pytest -v
+```
 
 ## Roadmap to v1.0.0
 
-- [x] Live terminal dashboard (`psutil + rich`)
-- [x] Background DNS resolution of IPs into hostnames with caching
-- [x] Group sockets by process name
-- [ ] Save connection history to SQLite
-- [ ] Move `TRUSTED_PROCESSES` to an external config file and CLI interface
+- [x] Live terminal dashboard (`psutil` + `rich`)
+- [x] Private subnet and `TIME_WAIT` socket filtering
+- [x] Non-blocking background DNS resolution with caching
+- [x] Socket grouping by process and target
+- [x] Modular package layout (`src/beacon/`), CLI, and external `whitelist.json` (`v0.2.0-beta`)
+- [ ] Connection history and anomaly detection with `sqlite3` (`v1.0.0`)
+- [ ] Local tactical web dashboard with FastAPI + WebSockets (`v2.0.0`)
