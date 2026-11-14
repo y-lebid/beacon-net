@@ -6,3 +6,7 @@ __pycache__/
 503.html
 index.html
 maintenance.html
+*.egg-info/
+build/
+dist/
+.pytest_cache/
