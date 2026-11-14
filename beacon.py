@@ -1,3 +1,4 @@
+import ipaddress
 import time
 import psutil
 from rich.console import Console
@@ -15,19 +16,29 @@ TRUSTED_PROCESSES = {
     "discord.exe", "discord",
     "telegram.exe", "telegram-desktop",
     "steam.exe", "steam",
-    "svchost.exe", "systemd-resolve",
+    "eadesktop.exe", "eabackgroundservice.exe", "eacefsubprocess.exe",
+    "msmpeng.exe", "svchost.exe", "systemd-resolve",
 }
 
 
-def is_local_ip(ip: str) -> bool:
-    return ip.startswith("127.") or ip in ("::1", "0.0.0.0", "::")
+def is_non_public_ip(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip)
+        return addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_unspecified
+    except ValueError:
+        return True
 
 
 def get_active_connections() -> list[dict]:
+    """Collects active outbound connections and maps them to OS processes."""
     connections_data = []
 
     for conn in psutil.net_connections(kind="inet"):
-        if not conn.raddr or is_local_ip(conn.raddr.ip):
+        # Skip closed lingering sockets (usually owned by PID 0) and listening ports
+        if not conn.raddr or conn.status == "TIME_WAIT":
+            continue
+
+        if is_non_public_ip(conn.raddr.ip):
             continue
 
         pid = conn.pid
@@ -37,6 +48,7 @@ def get_active_connections() -> list[dict]:
             try:
                 proc_name = psutil.Process(pid).name()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
+                # Process terminated mid-scan or requires elevated privileges
                 proc_name = f"Restricted (PID {pid})"
 
         connections_data.append({
@@ -52,6 +64,7 @@ def get_active_connections() -> list[dict]:
 
 
 def get_roast_level(process_name: str, port: int, status: str) -> str:
+    """Evaluates connection risk level based on process trust and target port."""
     if process_name.lower() not in TRUSTED_PROCESSES:
         return "[bold red]🔥 BURNT (Unknown)[/]"
     if port not in (80, 443, 53):
@@ -62,6 +75,7 @@ def get_roast_level(process_name: str, port: int, status: str) -> str:
 
 
 def build_dashboard() -> Panel:
+    """Builds the Rich live terminal table."""
     connections = get_active_connections()
 
     table = Table(
@@ -72,7 +86,7 @@ def build_dashboard() -> Panel:
 
     table.add_column("PID", justify="right", style="dim", width=7)
     table.add_column("Process", style="bold white", min_width=18)
-    table.add_column("Remote Target", style="blue")
+    table.add_column("Remote Target", style="bright_cyan")
     table.add_column("Status", width=13)
     table.add_column("Roast Level", width=22)
 
@@ -107,4 +121,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
