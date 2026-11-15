@@ -1,5 +1,7 @@
 venv/
 .venv/
+.venv-linux/
+.tox/
 __pycache__/
 *.py[cod]
 .DS_Store
@@ -10,3 +12,20 @@ maintenance.html
 build/
 dist/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local SQLite data
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3

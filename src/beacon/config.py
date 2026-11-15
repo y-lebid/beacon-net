@@ -13,6 +13,7 @@ DEFAULT_TRUSTED_PROCESSES = [
     "steam.exe", "steam",
     "eadesktop.exe", "eabackgroundservice.exe", "eacefsubprocess.exe",
     "msmpeng.exe", "svchost.exe", "systemd-resolve",
+    "chronyd",
 ]
 
 
@@ -25,8 +26,10 @@ def load_whitelist() -> set[str]:
 
     try:
         data = json.loads(WHITELIST_PATH.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("whitelist must be a JSON array")
         return {str(item).lower() for item in data}
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, ValueError):
         return {p.lower() for p in DEFAULT_TRUSTED_PROCESSES}
 
 

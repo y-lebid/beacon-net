@@ -1,14 +1,18 @@
 from concurrent.futures import ThreadPoolExecutor
 import ipaddress
-import socket
+import json
+import subprocess
+import sys
 import psutil
 
 
 class NetworkMonitor:
     """Collects active outbound sockets, resolves PTR records, and scores risk."""
 
+    DNS_LOOKUP_TIMEOUT = 3.0
+
     def __init__(self, trusted_processes: set[str], max_dns_workers: int = 4):
-        self.trusted_processes = trusted_processes
+        self.trusted_processes = {name.lower() for name in trusted_processes}
         self._dns_cache: dict[str, str] = {}
         self._pending_lookups: set[str] = set()
         self._executor = ThreadPoolExecutor(max_workers=max_dns_workers)
@@ -18,9 +22,22 @@ class NetworkMonitor:
 
     def _resolve_worker(self, ip: str) -> None:
         try:
-            hostname, _, _ = socket.gethostbyaddr(ip)
-            self._dns_cache[ip] = hostname
-        except (socket.herror, socket.gaierror, OSError):
+            # Run libc's potentially unbounded resolver in a child process. This
+            # keeps executor threads bounded and lets shutdown finish promptly.
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import json, socket, sys; print(json.dumps(socket.gethostbyaddr(sys.argv[1])[0]))",
+                    ip,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=self.DNS_LOOKUP_TIMEOUT,
+            )
+            self._dns_cache[ip] = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
             self._dns_cache[ip] = ip
         finally:
             self._pending_lookups.discard(ip)

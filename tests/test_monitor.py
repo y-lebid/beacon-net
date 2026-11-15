@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
+import subprocess
+
 from beacon.monitor import NetworkMonitor
 
 
@@ -8,17 +10,37 @@ def test_is_non_public_ip():
     assert NetworkMonitor.is_non_public_ip("192.168.1.1") is True
     assert NetworkMonitor.is_non_public_ip("10.0.0.5") is True
     assert NetworkMonitor.is_non_public_ip("172.16.0.1") is True
+    assert NetworkMonitor.is_non_public_ip("::1") is True
+    assert NetworkMonitor.is_non_public_ip("fe80::1") is True
+    assert NetworkMonitor.is_non_public_ip("0.0.0.0") is True
     assert NetworkMonitor.is_non_public_ip("invalid-ip") is True
     assert NetworkMonitor.is_non_public_ip("140.82.112.26") is False
 
 
 def test_roast_level_classification():
-    monitor = NetworkMonitor(trusted_processes={"chrome.exe"})
+    monitor = NetworkMonitor(trusted_processes={"Chrome.EXE"})
 
     assert monitor.get_roast_level("unknown_malware.exe", 443, "ESTABLISHED") == "BURNT"
-    assert monitor.get_roast_level("chrome.exe", 8080, "ESTABLISHED") == "CRISPY"
+    assert monitor.get_roast_level("cHrOmE.ExE", 8080, "ESTABLISHED") == "CRISPY"
     assert monitor.get_roast_level("chrome.exe", 443, "ESTABLISHED") == "SIZZLING"
     assert monitor.get_roast_level("chrome.exe", 443, "CLOSE_WAIT") == "RAW"
+    monitor.shutdown()
+
+
+def test_dns_timeout_falls_back_to_ip_and_clears_pending():
+    monitor = NetworkMonitor(trusted_processes=set())
+    ip = "140.82.112.26"
+    monitor._pending_lookups.add(ip)
+
+    with patch(
+        "beacon.monitor.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="python", timeout=3),
+    ):
+        monitor._resolve_worker(ip)
+
+    assert monitor._dns_cache[ip] == ip
+    assert ip not in monitor._pending_lookups
+    monitor.shutdown()
 
 
 @patch("beacon.monitor.psutil.Process")

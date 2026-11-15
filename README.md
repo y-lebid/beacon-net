@@ -1,79 +1,101 @@
 # 🥓 Beacon
+
 [![CI](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml/badge.svg)](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml)
 
-[Читати українською](./README.uk.md)
+[Read in Ukrainian](./README.uk.md)
 
-A lightweight terminal monitor for outbound network activity in real time, built with Python.
-
-Beacon helps you instantly see which applications are currently connecting to the internet, which domains, IP addresses, and ports they use, and how suspicious each connection looks based on a simple roast-level system.
+Beacon is a lightweight terminal monitor for outbound network activity. It shows active remote targets by process, resolves public IP addresses to hostnames in the background, and keeps a local history of observed targets.
 
 ![Beacon Live Monitor](assets/preview.png)
+![Beacon Audit Mode](assets/history.png)
 
-## What it does
+## Features
 
-- **Real-time monitoring:** scans active IPv4/IPv6 sockets (`inet`) every second without flickering the terminal.
-- **Non-blocking reverse DNS:** resolves external IP addresses into human-readable hostnames in a background thread pool with caching, so the UI never freezes.
-- **Smart socket grouping:** deduplicates multiple connections from the same process to the same target into a single row with a socket counter (`x2`, `x8`).
-- **Noise filtering:** automatically ignores loopback addresses, private subnets (`192.168.x.x`, `10.x.x.x`, `172.16-31.x.x`), link-local traffic, and lingering `TIME_WAIT` sockets.
-- **Persistent JSON whitelist:** stores trusted processes in `~/.beacon/whitelist.json` and lets you manage them from the CLI.
-- **Roast-level scoring system:**
-  - 🥩 `RAW (Idle)` — trusted process in an idle or closing state.
-  - 🥓 `SIZZLING (Active)` — active `ESTABLISHED` connection from a trusted process on a standard port (`80`, `443`, `53`).
-  - 🍳 `CRISPY (Custom Port)` — trusted process communicating over a non-standard port.
-  - 🔥 `BURNT (Unknown)` — an untrusted or unrecognized process reaching out to the network.
+- **Live monitoring:** scans active IPv4 and IPv6 sockets with `psutil` and refreshes the Rich terminal dashboard once per second by default.
+- **Noise filtering:** skips sockets without a remote address, `TIME_WAIT` sockets, and non-public IP addresses, including private, loopback, link-local, and unspecified addresses.
+- **Background reverse DNS:** resolves hostnames without blocking the dashboard. Lookups run through a small thread pool, are cached, and have a three-second timeout.
+- **Socket grouping:** combines sockets for the same process, remote IP, port, and status into one row with a socket count.
+- **Process trust list:** stores trusted process names in `~/.beacon/whitelist.json`. The default list is created on first use and includes common desktop processes and `chronyd`.
+- **Roast levels:**
+  - 🥩 `RAW` — trusted process on a standard port in a state other than `ESTABLISHED`.
+  - 🥓 `SIZZLING` — trusted process with an `ESTABLISHED` connection on port `80`, `443`, or `53`.
+  - 🍳 `CRISPY` — trusted process using a different remote port.
+  - 🔥 `BURNT` — process not present in the trust list, including processes Beacon cannot identify.
+- **Connection history:** records process, remote IP and port, resolved hostname, roast level, first and last observation times (UTC), and an observation count in `~/.beacon/history.db`.
+- **New-target marker:** shows `[NEW]` the first time a process/IP/port pair is recorded. Later DNS resolution updates the saved hostname without replacing it with the raw IP on subsequent scans.
+- **History filters:** browse recent records, restrict the list to `BURNT` and `CRISPY`, and set a positive row limit.
 
-## Installation and usage
+History is local to the user account. The observation count is accumulated from socket counts on each scan; it is not a count of distinct TCP sessions.
 
-1. Clone the repository and create a virtual environment:
-   ```bash
-   git clone https://github.com/y-lebid/beacon-net.git
-   cd beacon-net
-   python -m venv venv
-   ```
+## Install
 
-2. Activate the environment and install the package:
-   ```bash
-   # Linux / macOS
-   source venv/bin/activate
+Beacon requires Python 3.10 or later.
 
-   # Windows
-   venv\Scripts\activate
+```bash
+git clone https://github.com/y-lebid/beacon-net.git
+cd beacon-net
+python -m venv .venv
+```
 
-   pip install -e .
-   ```
+Activate the environment and install Beacon:
 
-3. Run the monitor or manage your whitelist from the CLI:
-   ```bash
-   # Start the live monitor (default: 1-second refresh)
-   beacon
+```bash
+# Linux / macOS
+source .venv/bin/activate
 
-   # Set a custom refresh interval
-   beacon --interval 2
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
 
-   # Show the whitelist path and trusted processes
-   beacon --whitelist
+pip install -e .
+```
 
-   # Add a process to ~/.beacon/whitelist.json
-   beacon --trust ProtonVPN.Client.exe
-   ```
+## CLI
 
-> **Note:** To resolve names for all system processes and services, run the terminal with elevated privileges (`sudo beacon` on Linux or as Administrator on Windows). Without elevated rights, protected processes may appear as `Restricted`.
+```text
+beacon [-h] [-i INTERVAL] [--trust PROCESS] [--whitelist]
+       [--history] [--suspicious] [--limit N]
+```
 
-## Development and testing
+Examples:
 
-Install the development dependencies and run the test suite:
+```bash
+# Start the live monitor (one-second refresh by default)
+beacon
+
+# Refresh every two seconds
+beacon --interval 2
+
+# Show the whitelist path and trusted process names
+beacon --whitelist
+
+# Trust a process name (comparison is case-insensitive)
+beacon --trust ProtonVPN.Client.exe
+
+# Show the 30 most recently observed history records
+beacon --history
+
+# Show up to 100 suspicious records
+beacon --history --suspicious --limit 100
+```
+
+`--suspicious` filters history to `BURNT` and `CRISPY` records and is intended to be used with `--history`. `--limit` must be a positive integer and defaults to 30.
+
+Beacon may need elevated permissions to read sockets owned by protected processes. Without them, those processes can appear as `Restricted (PID …)` and are classified as untrusted until their process name can be read.
+
+## Development and tests
+
+Install development dependencies and run the suite:
 
 ```bash
 pip install -e ".[dev]"
 pytest -v
 ```
 
-## Roadmap to v1.0.0
+GitHub Actions runs the test suite on Python 3.10 through 3.14 for pushes and pull requests targeting `master`.
 
-- [x] Live terminal dashboard (`psutil` + `rich`)
-- [x] Private subnet and `TIME_WAIT` socket filtering
-- [x] Non-blocking background DNS resolution with caching
-- [x] Socket grouping by process and target
-- [x] Modular package layout (`src/beacon/`), CLI, and external `whitelist.json` (`v0.2.0-beta`)
-- [ ] Connection history and anomaly detection with `sqlite3` (`v1.0.0`)
-- [ ] Local tactical web dashboard with FastAPI + WebSockets (`v2.0.0`)
+## Roadmap
+
+- [x] Live terminal dashboard, socket filtering, grouping, and background DNS
+- [x] Persistent whitelist and roast-level classification
+- [x] SQLite connection history, new-target marking, and suspicious-history filtering (v1.0.0)
+- [ ] Local web dashboard with FastAPI and WebSockets (planned for v2.0.0)
