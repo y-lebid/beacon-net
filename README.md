@@ -1,13 +1,13 @@
 # 🥓 Beacon
 
 [![CI](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml/badge.svg)](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/y-lebid/beacon-net)](https://github.com/y-lebid/beacon-net/releases)
 
 [Read in Ukrainian](./README.uk.md)
 
-Beacon is a lightweight terminal monitor for outbound network activity. It shows active remote targets by process, resolves public IP addresses to hostnames in the background, and keeps a local history of observed targets.
+Beacon 1.1.0 is a lightweight terminal monitor for outbound network activity. It shows active remote targets by process, resolves public IP addresses to hostnames in the background, and keeps a local history of observed targets.
 
 ![Beacon Live Monitor](assets/preview.png)
-![Beacon Audit Mode](assets/history.png)
 
 ## Features
 
@@ -15,7 +15,8 @@ Beacon is a lightweight terminal monitor for outbound network activity. It shows
 - **Noise filtering:** skips sockets without a remote address, `TIME_WAIT` sockets, and non-public IP addresses, including private, loopback, link-local, and unspecified addresses.
 - **Background reverse DNS:** resolves hostnames without blocking the dashboard. Lookups run through a small thread pool, are cached, and have a three-second timeout.
 - **Socket grouping:** combines sockets for the same process, remote IP, port, and status into one row with a socket count.
-- **Process trust list:** stores trusted process names in `~/.beacon/whitelist.json`. The default list is created on first use and includes common desktop processes and `chronyd`.
+- **Process trust list:** stores trusted process names in `~/.beacon/whitelist.json`. The default list is created on first use and includes common desktop and system processes (`chronyd`, `MsMpEng.exe`, and others).
+- **Local data protection:** writes the whitelist atomically, rejects symlinked config/database targets, and on POSIX systems restricts the Beacon data directory to `0700` and files to `0600`.
 - **Roast levels:**
   - 🥩 `RAW` — trusted process on a standard port in a state other than `ESTABLISHED`.
   - 🥓 `SIZZLING` — trusted process with an `ESTABLISHED` connection on port `80`, `443`, or `53`.
@@ -29,7 +30,31 @@ History is local to the user account. The observation count is accumulated from 
 
 ## Install
 
-Beacon requires Python 3.10 or later.
+### Prebuilt binaries (no Python required)
+
+Download the matching binary and `SHA256SUMS.txt` from [GitHub Releases](https://github.com/y-lebid/beacon-net/releases/latest):
+
+- Windows x64: `beacon-windows-x64.exe` and `beacon.bat`.
+- Windows ARM64: `beacon-windows-arm64.exe` and `beacon.bat`.
+- Linux x64/ARM64: the matching `.tar.gz` archive.
+
+If you downloaded every release asset, verify them from that directory with:
+
+```bash
+sha256sum -c SHA256SUMS.txt
+```
+
+On Windows, compare the executable's hash in PowerShell:
+
+```powershell
+Get-FileHash .\beacon-windows-x64.exe -Algorithm SHA256
+```
+
+Compare the reported hash with the matching executable entry in `SHA256SUMS.txt` (use the ARM64 filename for an ARM64 build).
+
+Run `beacon.bat` on Windows, or extract the Linux archive and run `./beacon`.
+
+### Install from source (Python 3.10+ required)
 
 ```bash
 git clone https://github.com/y-lebid/beacon-net.git
@@ -80,6 +105,12 @@ beacon --history --suspicious --limit 100
 
 `--suspicious` filters history to `BURNT` and `CRISPY` records and is intended to be used with `--history`. `--limit` must be a positive integer and defaults to 30.
 
+![Beacon Audit Mode](assets/history.png)
+
+### Security and data storage
+
+The whitelist and database are stored under `~/.beacon`. On POSIX systems, Beacon sets the directory permissions to `0700` and the whitelist, database, and existing SQLite sidecar files to `0600`. Whitelist updates use an atomic replacement. Beacon refuses to use the config directory, whitelist, database, or database sidecars when the target itself is a symlink. On Windows, the files use the permissions inherited from the user's account and directory ACLs.
+
 Beacon may need elevated permissions to read sockets owned by protected processes. Without them, those processes can appear as `Restricted (PID …)` and are classified as untrusted until their process name can be read.
 
 ## Development and tests
@@ -91,11 +122,11 @@ pip install -e ".[dev]"
 pytest -v
 ```
 
-GitHub Actions runs the test suite on Python 3.10 through 3.14 for pushes and pull requests targeting `master`.
+GitHub Actions runs pytest on Python 3.10 through 3.14 and runs Bandit and `pip-audit` on pushes and pull requests targeting `main` or `master`. Pushing a `v*` tag builds Windows x64/ARM64 and Linux x64/ARM64 release artifacts, smoke-tests the binaries, and attaches them with SHA-256 checksums.
 
 ## Roadmap
 
 - [x] Live terminal dashboard, socket filtering, grouping, and background DNS
 - [x] Persistent whitelist and roast-level classification
-- [x] SQLite connection history, new-target marking, and suspicious-history filtering (v1.0.0)
+- [x] SQLite connection history, new-target marking, suspicious-history filtering, and local data hardening (v1.1.0)
 - [ ] Local web dashboard with FastAPI and WebSockets (planned for v2.0.0)

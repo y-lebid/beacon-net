@@ -17,6 +17,7 @@ dist/
 .coverage
 .coverage.*
 htmlcov/
+*.spec
 
 # Local environment and secrets
 .env

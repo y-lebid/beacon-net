@@ -1,0 +1,98 @@
+name: Build & Release Binaries
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: beacon-windows-x64.exe
+            binary_name: beacon.exe
+            archive: false
+          - os: windows-11-arm
+            artifact_name: beacon-windows-arm64.exe
+            binary_name: beacon.exe
+            archive: false
+          - os: ubuntu-latest
+            artifact_name: beacon-linux-x64.tar.gz
+            binary_name: beacon
+            archive: true
+          - os: ubuntu-24.04-arm
+            artifact_name: beacon-linux-arm64.tar.gz
+            binary_name: beacon
+            archive: true
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install . pyinstaller
+
+      - name: Build standalone binary
+        run: |
+          pyinstaller --onefile --clean --name beacon --collect-submodules rich src/beacon/cli.py
+
+      - name: Smoke test binary
+        run: |
+          ./dist/${{ matrix.binary_name }} --help
+
+      - name: Package Windows executable
+        if: ${{ !matrix.archive }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release_assets
+          Copy-Item "dist/${{ matrix.binary_name }}" "release_assets/${{ matrix.artifact_name }}"
+          Copy-Item "scripts/beacon.bat" "release_assets/beacon.bat"
+
+      - name: Package Linux tar.gz archive
+        if: ${{ matrix.archive }}
+        run: |
+          mkdir -p pkg_tmp release_assets
+          cp "dist/${{ matrix.binary_name }}" pkg_tmp/beacon
+          chmod +x pkg_tmp/beacon
+          cp README.md README.uk.md LICENSE pkg_tmp/
+          tar -czvf "release_assets/${{ matrix.artifact_name }}" -C pkg_tmp .
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release_assets/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_assets
+          merge-multiple: true
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd all_assets
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Attach binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: all_assets/*

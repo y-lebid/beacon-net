@@ -29,3 +29,18 @@ jobs:
 
       - name: Run pytest
         run: pytest -v --strict-config --strict-markers
+
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" bandit pip-audit
+
+      - name: Run SAST security scan (Bandit)
+        run: bandit -r src/ -ll
+
+      - name: Run dependency vulnerability audit (pip-audit)
+        run: pip-audit
+
+      - name: Run pytest
+        run: pytest -v

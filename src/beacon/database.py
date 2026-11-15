@@ -3,6 +3,7 @@ from pathlib import Path
 import sqlite3
 
 from beacon.config import CONFIG_DIR
+from beacon.security import ensure_secure_dir, secure_file
 
 DB_PATH = CONFIG_DIR / "history.db"
 
@@ -13,7 +14,8 @@ class ConnectionHistoryDB:
     def __init__(self, db_path: Path | str = DB_PATH):
         self.db_path = Path(db_path)
         if str(self.db_path) != ":memory:":
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            ensure_secure_dir(self.db_path.parent)
+            secure_file(self.db_path)
 
         self._conn = sqlite3.connect(str(self.db_path))
         self._conn.row_factory = sqlite3.Row
@@ -22,9 +24,18 @@ class ConnectionHistoryDB:
             self._init_schema()
             self._normalize_existing_process_names()
             self._load_baseline()
+            if str(self.db_path) != ":memory:":
+                self._harden_db_files()
         except Exception:
             self._conn.close()
             raise
+
+    def _harden_db_files(self) -> None:
+        """Applies owner-only permissions to the database and SQLite sidecars."""
+        for suffix in ("", "-wal", "-shm"):
+            target = Path(f"{self.db_path}{suffix}")
+            if target.exists():
+                secure_file(target)
 
     def _init_schema(self) -> None:
         with self._conn:
