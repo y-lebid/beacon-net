@@ -1,7 +1,11 @@
 # 🥓 Beacon
 
 [![CI](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml/badge.svg)](https://github.com/y-lebid/beacon-net/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/y-lebid/beacon-net)](https://github.com/y-lebid/beacon-net/releases)
+[![Release](https://img.shields.io/github/v/release/y-lebid/beacon-net?label=Release)](https://github.com/y-lebid/beacon-net/releases)
+[![License](https://img.shields.io/github/license/y-lebid/beacon-net?label=License&color=7CC4B0)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/y-lebid/beacon-net?style=flat&logo=github&label=Stars)](https://github.com/y-lebid/beacon-net/stargazers)
+[![Report Bug](https://img.shields.io/badge/Report-a%20bug-2ea44f?logo=github)](https://github.com/y-lebid/beacon-net/issues/new)
+[![Monobank](https://img.shields.io/badge/Monobank-Donate%20🐈‍⬛-000000?style=flat&labelColor=1D2026&color=FA5255)](https://send.monobank.ua/jar/9pR25PQ1MV)
 
 [Read in English](./README.md)
 
