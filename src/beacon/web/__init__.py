@@ -1,0 +1,1 @@
+"""Local FastAPI web dashboard package for Beacon."""

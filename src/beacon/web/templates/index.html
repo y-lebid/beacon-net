@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="beacon-token" content="{{ session_token }}">
+  <title>Beacon — Outbound Network Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+</head>
+<body>
+
+  <!-- INTRO SEQUENCE -->
+  <div class="intro-sequence" id="intro-sequence" aria-hidden="true">
+    <div class="intro-wordmark">BEACON</div>
+    <div class="intro-status">
+      <span class="status-dot"></span>
+      <span>LOCAL TELEMETRY ENGINE • 127.0.0.1</span>
+    </div>
+  </div>
+
+  <!-- ANTI-AI GATE -->
+  <div class="kitchen-gate-overlay" id="kitchen-gate">
+    <div class="gate-card">
+      <div class="gate-topbar">
+        <span class="gate-brand">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Beacon</span>
+        </span>
+        <span class="gate-tag">NO-LLM ZONE</span>
+      </div>
+      <div class="gate-body">
+        <div class="gate-header">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <h2>Stop! AI agents cannot enter the kitchen</h2>
+        </div>
+        <p class="gate-desc">
+          This dashboard monitors real machine sockets and processes. Confirm that you are human so parsers, scrapers, and LLM agents do not wander around the kitchen.
+        </p>
+
+        <div class="gate-challenge">
+          <div class="gate-prompt">
+            <span>TASK: SELECT HUMAN ACTION</span>
+            <span>[1 CLICK]</span>
+          </div>
+          <div class="gate-options">
+            <button class="gate-opt-btn" onclick="verifyChef(this, false)">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+              <span>I am an LLM agent</span>
+            </button>
+            <button class="gate-opt-btn" onclick="verifyChef(this, true)">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+              <span>Sizzle the bacon</span>
+            </button>
+            <button class="gate-opt-btn" onclick="verifyChef(this, false)">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span>Web crawler</span>
+            </button>
+          </div>
+          <div class="gate-feedback" id="gate-feedback"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP SYSTEM STRIP -->
+  <div class="top-system-strip" id="top-strip">
+    <div class="top-strip-inner">
+      <span class="strip-pill">PREVIEW</span>
+      <span data-i18n="strip_text">BEACON v2.0.0 WEB DASHBOARD — LOCAL TELEMETRY INTERFACE (127.0.0.1)</span>
+      <button class="strip-close" onclick="document.getElementById('top-strip').style.display='none'" title="Hide">×</button>
+    </div>
+  </div>
+
+  <!-- UNIFIED ROCKSTAR-STYLE HEADER -->
+  <header class="rs-header">
+    <div class="rs-header-inner">
+      <div class="rs-brand-wrap" id="brand-menu-wrap">
+        <button class="rs-brand-btn" onclick="toggleBrandMenu(event)" aria-expanded="false">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="rs-logo-text">BEACON</span>
+          <span class="repo-badge">WIP</span>
+          <svg class="icon chevron-icon" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      <nav class="rs-center-nav">
+        <button class="rs-nav-link active" data-tab="live" onclick="switchTab('live', this)">
+          <span>LIVE RADAR</span>
+          <span class="tab-counter">0</span>
+        </button>
+        <button class="rs-nav-link" data-tab="history" onclick="switchTab('history', this)">
+          <span>HISTORY DB</span>
+        </button>
+        <button class="rs-nav-link" data-tab="whitelist" onclick="switchTab('whitelist', this)">
+          <span>WHITELIST</span>
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <div class="conn-status-pill">
+          <span class="status-dot"></span>
+          <strong data-i18n="status_awaiting">Awaiting Stream</strong>
+          <span class="conn-endpoint">127.0.0.1:8765</span>
+        </div>
+        <button disabled title="Available once live WebSocket stream is connected">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <span data-i18n="btn_pause">Pause</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Full-Width Mega Drawer -->
+    <div class="rs-mega-drawer" id="brand-dropdown">
+      <div class="rs-mega-inner">
+        <div class="rs-mega-header">
+          <span>MODULES & DOCUMENTATION</span>
+          <span class="rs-mega-hint">LOCAL SECURITY TELEMETRY SUITE</span>
+        </div>
+        <div class="rs-mega-grid">
+          <button class="rs-mega-card" onclick="selectTabFromMenu('live')">
+            <div class="rs-card-top">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span class="rs-card-tag">REAL-TIME</span>
+            </div>
+            <div class="rs-card-title">Live Socket Radar</div>
+            <div class="rs-card-desc">Monitor active outbound connections and roast levels in real time.</div>
+          </button>
+
+          <button class="rs-mega-card" onclick="selectTabFromMenu('history')">
+            <div class="rs-card-top">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              <span class="rs-card-tag">SQLITE WAL</span>
+            </div>
+            <div class="rs-card-title">Connection History</div>
+            <div class="rs-card-desc">History of every observed host, including first/last visit and hit count.</div>
+          </button>
+
+          <button class="rs-mega-card" onclick="selectTabFromMenu('whitelist')">
+            <div class="rs-card-top">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <span class="rs-card-tag">POLICY</span>
+            </div>
+            <div class="rs-card-title">Trusted Whitelist</div>
+            <div class="rs-card-desc">Manage trusted processes in ~/.beacon/whitelist.json.</div>
+          </button>
+
+          <a class="rs-mega-card" href="https://github.com/y-lebid/beacon-net/wiki" target="_blank" rel="noopener">
+            <div class="rs-card-top">
+              <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              <span class="rs-card-tag">DOCS ↗</span>
+            </div>
+            <div class="rs-card-title">GitHub Wiki & CLI</div>
+            <div class="rs-card-desc">Full architecture documentation, SHA-256 verification, and CLI flag reference.</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="rs-backdrop" id="rs-backdrop" onclick="closeBrandMenu()"></div>
+
+  <main>
+    <!-- TAB 1: LIVE RADAR -->
+    <div class="tab-view active" id="tab-live">
+
+      <!-- HERO TELEMETRY STRIP -->
+      <section class="hero-strip" data-reveal="1">
+        <div class="hero-metric">
+          <div class="hero-kicker">
+            <span class="hero-mark"></span>
+            <span data-i18n="hero_kicker">UNTRUSTED OUTBOUND ALERTS (BURNT)</span>
+          </div>
+          <div class="hero-value val-burnt">0</div>
+          <div class="hero-caption" data-i18n="hero_caption">No untrusted processes detected while stream is offline</div>
+        </div>
+        <div class="hero-context">
+          <span class="hero-context-label">TELEMETRY STATUS</span>
+          <strong data-i18n="hero_status_title">UI Scaffold Ready (WIP)</strong>
+          <p data-i18n="hero_status_desc">Live socket streaming via WebSocket and SQLite history endpoints will be wired in upcoming commits.</p>
+        </div>
+      </section>
+
+      <!-- KPI GRID -->
+      <section class="kpi-grid" data-reveal="2">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span data-i18n="kpi_active">Active Sockets</span>
+            <svg class="icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="kpi-value">0</div>
+          <div class="kpi-sub" data-i18n="kpi_active_sub">No live stream connected yet</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Sizzling (Standard)</span>
+            <svg class="icon val-sizzling" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="kpi-value val-sizzling">0</div>
+          <div class="kpi-sub" data-i18n="kpi_sizzling_sub">Trusted ports 80, 443, 53</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Crispy (Custom Ports)</span>
+            <svg class="icon val-crispy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="kpi-value val-crispy">0</div>
+          <div class="kpi-sub" data-i18n="kpi_crispy_sub">Trusted non-standard ports</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">
+            <span>Burnt (Untrusted)</span>
+            <svg class="icon val-burnt" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="kpi-value val-burnt">0</div>
+          <div class="kpi-sub" data-i18n="kpi_burnt_sub">New targets this session: 0</div>
+        </div>
+      </section>
+
+      <!-- CHARTS -->
+      <section class="charts-grid" data-reveal="3">
+        <div class="gh-box">
+          <div class="gh-box-header">
+            <span class="gh-box-title" data-i18n="chart_title">Active Sockets Over Time (count)</span>
+            <span class="gh-box-meta">Current: —</span>
+          </div>
+          <div class="gh-box-body">
+            <div class="canvas-wrap">
+              <canvas id="trafficChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="gh-box">
+          <div class="gh-box-header">
+            <span class="gh-box-title" data-i18n="donut_title">Roast Distribution &amp; Top Processes</span>
+            <span class="gh-box-meta">4 LEVELS</span>
+          </div>
+          <div class="gh-box-body">
+            <div class="donut-wrap">
+              <div class="donut-canvas-box">
+                <canvas id="roastDonut"></canvas>
+                <div class="donut-center-label">
+                  <span class="donut-center-val">0</span>
+                  <span class="donut-center-sub">SOCKETS</span>
+                </div>
+              </div>
+              <div class="right-telemetry">
+                <div class="legend-row">
+                  <span class="legend-left"><span class="legend-dot" style="background: var(--risk-burnt);"></span>Burnt</span>
+                  <strong>0</strong>
+                </div>
+                <div class="legend-row">
+                  <span class="legend-left"><span class="legend-dot" style="background: var(--risk-crispy);"></span>Crispy</span>
+                  <strong>0</strong>
+                </div>
+                <div class="legend-row">
+                  <span class="legend-left"><span class="legend-dot" style="background: var(--risk-sizzling);"></span>Sizzling</span>
+                  <strong>0</strong>
+                </div>
+                <div class="legend-row">
+                  <span class="legend-left"><span class="legend-dot" style="background: var(--risk-raw);"></span>Raw</span>
+                  <strong>0</strong>
+                </div>
+                <div class="top-talkers-divider">
+                  Top: —
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TOOLBAR -->
+      <section class="toolbar" data-reveal="4">
+        <div class="search-wrap">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" class="search-input" placeholder="Filter by process, IP, or hostname..." disabled>
+        </div>
+
+        <div class="segmented-group">
+          <button class="seg-btn active" disabled>All</button>
+          <button class="seg-btn" disabled>Burnt</button>
+          <button class="seg-btn" disabled>Crispy</button>
+          <button class="seg-btn" disabled>Sizzling</button>
+          <button class="seg-btn" disabled>Raw</button>
+          <button class="seg-btn" disabled>[NEW]</button>
+        </div>
+      </section>
+
+      <!-- TABLE + MASCOT EMPTY STATE -->
+      <section class="table-container" data-reveal="5">
+        <table>
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>Process</th>
+              <th>Remote Target</th>
+              <th>State</th>
+              <th>
+                <span class="th-help-wrap" tabindex="0">
+                  <span>Roast Level</span>
+                  <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <div class="roast-tooltip">
+                    <div class="tooltip-row">
+                      <span class="tooltip-dot" style="background: var(--risk-burnt);"></span>
+                      <div><strong>BURNT</strong> — Process is not in whitelist or access is restricted.</div>
+                    </div>
+                    <div class="tooltip-row">
+                      <span class="tooltip-dot" style="background: var(--risk-crispy);"></span>
+                      <div><strong>CRISPY</strong> — Trusted process using a non-standard remote port.</div>
+                    </div>
+                    <div class="tooltip-row">
+                      <span class="tooltip-dot" style="background: var(--risk-sizzling);"></span>
+                      <div><strong>SIZZLING</strong> — Trusted process ESTABLISHED on port 80, 443, or 53.</div>
+                    </div>
+                    <div class="tooltip-row">
+                      <span class="tooltip-dot" style="background: var(--risk-raw);"></span>
+                      <div><strong>RAW</strong> — Trusted process on port 80/443/53 not in ESTABLISHED state.</div>
+                    </div>
+                  </div>
+                </span>
+              </th>
+              <th>Trust Policy</th>
+            </tr>
+          </thead>
+        </table>
+
+        <div class="mascot-empty-state">
+          <img
+            id="beacon-mascot"
+            src="{{ url_for('static', path='img/mascot.png') }}"
+            alt="Beacon Mascot"
+            class="mascot-avatar"
+            title="Poke the chef"
+            onclick="pokeMascot()"
+          >
+          <div class="speech-bubble" id="mascot-bubble">
+            <div class="speech-header">
+              <span class="speech-badge" id="mascot-badge">STATUS: WIP</span>
+              <span class="speech-cmd">CLI works now: <code>beacon</code></span>
+            </div>
+            <div class="speech-title">
+              <span id="mascot-title">The web dashboard is still warming up - no data yet</span><span class="cursor-blink"></span>
+            </div>
+            <p class="speech-desc" id="mascot-desc">
+              The interface is ready, but live sockets from <code>NetworkMonitor</code> and the history API via WebSocket will be wired in upcoming commits.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TAB 2: HISTORY DB -->
+    <div class="tab-view" id="tab-history">
+      <div class="placeholder-panel">
+        <h3>
+          <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Connection History (~/.beacon/history.db) — In Development</span>
+        </h3>
+        <p>REST API endpoint <code>GET /api/history</code> is planned for the next milestone. In the meantime, run <code>beacon --history</code> in your terminal.</p>
+      </div>
+    </div>
+
+    <!-- TAB 3: WHITELIST -->
+    <div class="tab-view" id="tab-whitelist">
+      <div class="placeholder-panel">
+        <h3>
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <span>Trusted Processes (~/.beacon/whitelist.json) — In Development</span>
+        </h3>
+        <p>Interactive whitelist management via Web UI is under construction. Use <code>beacon --whitelist</code> or <code>beacon --trust &lt;process&gt;</code> in CLI.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- STRUCTURED FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="https://github.com/y-lebid/beacon-net" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/y-lebid/beacon-net/wiki" target="_blank" rel="noopener">Wiki</a>
+        <a href="https://github.com/y-lebid/beacon-net/releases" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/y-lebid/beacon-net/issues" target="_blank" rel="noopener">Report Issue</a>
+      </div>
+
+      <div class="footer-meta">
+        <span>BOUND TO 127.0.0.1:8765 • SESSION TOKEN PROTECTED</span>
+        <select class="lang-select" id="lang-select" onchange="setUiLang(this.value)" aria-label="Language">
+          <option value="en" selected>English</option>
+        </select>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', path='js/app.js') }}"></script>
+</body>
+</html>

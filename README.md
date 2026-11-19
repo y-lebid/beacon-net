@@ -7,30 +7,25 @@
 [![Report Bug](https://img.shields.io/badge/Report-a%20bug-2ea44f?logo=github)](https://github.com/y-lebid/beacon-net/issues/new)
 [![Monobank](https://img.shields.io/badge/Monobank-Donate%20🐈‍⬛-000000?style=flat&labelColor=1D2026&color=FA5255)](https://send.monobank.ua/jar/9pR25PQ1MV)
 
-[Read in Ukrainian](./README.uk.md)
+Beacon is a terminal dashboard for seeing which processes connect to public internet hosts. Install with `pip install beacon-net` or download a verified binary from [GitHub Releases](https://github.com/y-lebid/beacon-net/releases/latest).
 
-Beacon 1.1.0 is a lightweight terminal monitor for outbound network activity. It shows active remote targets by process, resolves public IP addresses to hostnames in the background, and keeps a local history of observed targets.
+![Beacon v1.1.0 live monitor showing grouped outbound targets, socket states, and roast levels](assets/preview.png)
 
-![Beacon Live Monitor](assets/preview.png)
+*Beacon v1.1.0 live monitor: 29 unique targets and their process, remote address, socket state, and roast level.*
+
+![Six-second illustrative Beacon dashboard demo with sample data changing between refreshes](assets/demo.gif)
+
+*Six-second illustrative demo using sample data; rows and socket counts change on each one-second refresh.*
 
 ## Features
 
-- **Live monitoring:** scans active IPv4 and IPv6 sockets with `psutil` and refreshes the Rich terminal dashboard once per second by default.
-- **Noise filtering:** skips sockets without a remote address, `TIME_WAIT` sockets, and non-public IP addresses, including private, loopback, link-local, and unspecified addresses.
-- **Background reverse DNS:** resolves hostnames without blocking the dashboard. Lookups run through a small thread pool, are cached, and have a three-second timeout.
-- **Socket grouping:** combines sockets for the same process, remote IP, port, and status into one row with a socket count.
-- **Process trust list:** stores trusted process names in `~/.beacon/whitelist.json`. The default list is created on first use and includes common desktop and system processes (`chronyd`, `MsMpEng.exe`, and others).
-- **Local data protection:** writes the whitelist atomically, rejects symlinked config/database targets, and on POSIX systems restricts the Beacon data directory to `0700` and files to `0600`.
-- **Roast levels:**
-  - 🥩 `RAW` — trusted process on a standard port in a state other than `ESTABLISHED`.
-  - 🥓 `SIZZLING` — trusted process with an `ESTABLISHED` connection on port `80`, `443`, or `53`.
-  - 🍳 `CRISPY` — trusted process using a different remote port.
-  - 🔥 `BURNT` — process not present in the trust list, including processes Beacon cannot identify.
-- **Connection history:** records process, remote IP and port, resolved hostname, roast level, first and last observation times (UTC), and an observation count in `~/.beacon/history.db`.
-- **New-target marker:** shows `[NEW]` the first time a process/IP/port pair is recorded. Later DNS resolution updates the saved hostname without replacing it with the raw IP on subsequent scans.
-- **History filters:** browse recent records, restrict the list to `BURNT` and `CRISPY`, and set a positive row limit.
+- Live IPv4/IPv6 connection monitoring, refreshed once per second by default.
+- Public-IP filtering, socket grouping, and background reverse DNS.
+- Process trust list with four roast levels: `RAW`, `SIZZLING`, `CRISPY`, and `BURNT` ([classification details](docs/roast-levels.md)).
+- Local SQLite history with new-target markers and suspicious-record filters.
+- Local data protections, including POSIX file permissions and symlink checks.
 
-History is local to the user account. The observation count is accumulated from socket counts on each scan; it is not a count of distinct TCP sessions.
+History is local to the user account. The observation count is accumulated from socket counts on each scan; it is not a count of distinct TCP sessions. See [Security and data storage](#security-and-data-storage) for access and permission limits.
 
 ## Install
 
@@ -109,7 +104,7 @@ beacon --history --suspicious --limit 100
 
 `--suspicious` filters history to `BURNT` and `CRISPY` records and is intended to be used with `--history`. `--limit` must be a positive integer and defaults to 30.
 
-![Beacon Audit Mode](assets/history.png)
+![Beacon history view showing saved remote targets, observation counts, timestamps, and roast levels](assets/history.png)
 
 ### Security and data storage
 

@@ -6,7 +6,6 @@ __pycache__/
 *.py[cod]
 .DS_Store
 503.html
-index.html
 maintenance.html
 *.egg-info/
 build/
@@ -18,6 +17,7 @@ dist/
 .coverage.*
 htmlcov/
 *.spec
+*.ps1
 
 # Local environment and secrets
 .env
